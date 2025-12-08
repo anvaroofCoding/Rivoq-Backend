@@ -1,1 +1,1 @@
-export const { PORT, MONGODB_ATLAS_URL } = process.env;
+export const { PORT, MONGODB_ATLAS_URI } = process.env;
