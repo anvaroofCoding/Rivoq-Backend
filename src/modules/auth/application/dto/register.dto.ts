@@ -17,13 +17,23 @@ export class RegisterDto {
   @IsNotEmpty()
   lastName: string;
 
+  @ApiProperty({ example: 'https://www.instagram.com/islom_intech' })
+  @IsString()
+  @IsNotEmpty()
+  instagramUsername: string;
+
+  @ApiProperty({ example: 'https://t.me/isamu_web' })
+  @IsString()
+  @IsNotEmpty()
+  telegramUsername: string;
+
   @ApiProperty({ example: '+998947932005' })
   @IsString()
   @IsPhoneNumber()
   @IsNotEmpty()
   phoneNumber: string;
 
-  @ApiProperty({ example: 'abdulborimahammadjanov86@gmail.com' })
+  @ApiProperty({ example: 'islomanvarov05@gmail.com' })
   @IsString()
   @IsEmail()
   @IsNotEmpty()
@@ -36,12 +46,5 @@ export class RegisterDto {
 
   status: UserStatus.pending;
 
-  @ApiProperty({
-    enum: ['admin', 'superadmin', 'operator', 'teacher', 'student'],
-    example: UserRole.admin,
-    default: UserRole.admin,
-  })
-  @IsString()
-  @IsNotEmpty()
-  role: UserRole;
+  role: UserRole.student;
 }

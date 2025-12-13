@@ -20,6 +20,12 @@ export class User {
   lastName: string;
 
   @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
+  instagramUsername: string;
+
+  @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
+  telegramUsername: string;
+
+  @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
   phoneNumber: string;
 
   @Prop({
@@ -44,7 +50,6 @@ export class User {
   @Prop({
     type: SchemaTypes.String,
     enum: ['admin', 'superadmin', 'teacher', 'student', 'operator'],
-    required: [true, 'Role is required'],
   })
   role: string;
 }

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MailerModule } from '@nestjs-modules/mailer';
 
 import { AuthModule } from './modules/auth/auth.module.js';
 
@@ -8,6 +9,15 @@ import { AuthModule } from './modules/auth/auth.module.js';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRoot(process.env.MONGODB_ATLAS_URI as string),
+    MailerModule.forRoot({
+      transport: {
+        service: 'gmail',
+        auth: {
+          user: process.env.NODEMAILER_USER_EMAIL,
+          pass: process.env.NODEMAILER_USER_PASSWORD,
+        },
+      },
+    }),
     AuthModule,
   ],
   controllers: [],

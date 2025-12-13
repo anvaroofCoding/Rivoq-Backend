@@ -1,65 +1,81 @@
-class AppError extends Error {
-  constructor(message, statusCode) {
-    super(message);
+import { HttpException, HttpStatus } from '@nestjs/common';
+
+export class AppError extends HttpException {
+  public readonly statusCode: number;
+  public readonly statusType: 'fail' | 'error';
+  public readonly isOperational: boolean;
+
+  constructor(message: string, statusCode: number) {
+    super(message, statusCode);
 
     this.statusCode = statusCode;
-    this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
+    this.statusType = statusCode >= 400 && statusCode < 500 ? 'fail' : 'error';
     this.isOperational = true;
 
     Error.captureStackTrace(this, this.constructor);
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
-class BadRequestError extends AppError {
-  constructor(message = 'Bad Request') {
-    super(message, 400);
+export class BadRequestError extends AppError {
+  constructor(message: string = 'Bad Request') {
+    super(message, HttpStatus.BAD_REQUEST);
   }
 }
 
-class UnauthorizedError extends AppError {
-  constructor(message = 'Unauthorized') {
-    super(message, 401);
+export class UnauthorizedError extends AppError {
+  constructor(message: string = 'Unauthorized') {
+    super(message, HttpStatus.UNAUTHORIZED);
   }
 }
 
-class ForbiddenError extends AppError {
-  constructor(message = 'Forbidden') {
-    super(message, 403);
+export class ForbiddenError extends AppError {
+  constructor(message: string = 'Forbidden') {
+    super(message, HttpStatus.FORBIDDEN);
   }
 }
 
-class NotFoundError extends AppError {
-  constructor(message = 'Not Found') {
-    super(message, 404);
+export class NotFoundError extends AppError {
+  constructor(message: string = 'Not Found') {
+    super(message, HttpStatus.NOT_FOUND);
   }
 }
 
-class ConflictError extends AppError {
-  constructor(message = 'Conflict') {
-    super(message, 409);
+export class ConflictError extends AppError {
+  constructor(message: string = 'Conflict') {
+    super(message, HttpStatus.CONFLICT);
   }
 }
 
-class ValidationError extends AppError {
-  constructor(message = 'Validation Error', errors = []) {
-    super(message, 422);
+export class ValidationError extends AppError {
+  public readonly errors: Array<{
+    field: string;
+    message: string;
+  }>;
+
+  constructor(
+    message: string = 'Validation Error',
+    errors: Array<{ field: string; message: string }> = [],
+  ) {
+    super(message, HttpStatus.UNPROCESSABLE_ENTITY);
     this.errors = errors;
   }
 }
 
-class InternalServerError extends AppError {
-  constructor(message = 'Internal Server Error') {
-    super(message, 500);
+export class InternalServerError extends AppError {
+  constructor(message: string = 'Internal Server Error') {
+    super(message, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 }
 
-export {
-  AppError,
-  BadRequestError,
-  UnauthorizedError,
-  ForbiddenError,
-  NotFoundError,
-  ConflictError,
-  ValidationError,
-  InternalServerError,
-};
+export class ServiceUnavailableError extends AppError {
+  constructor(message: string = 'Service Unavailable') {
+    super(message, HttpStatus.SERVICE_UNAVAILABLE);
+  }
+}
+
+export class TooManyRequestsError extends AppError {
+  constructor(message: string = 'Too Many Requests') {
+    super(message, HttpStatus.TOO_MANY_REQUESTS);
+  }
+}

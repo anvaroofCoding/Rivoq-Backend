@@ -128,9 +128,11 @@ src/
 ## 📖 Har bir papkaning vazifasi
 
 ### 1. `shared/infrastructure/services/` - Infrastructure Services
+
 **Vazifasi:** Tashqi dunyo bilan ishlash (email, sms, storage, payment, etc.)
 
 **Qachon ishlatiladi:**
+
 - ✅ Email yuborish
 - ✅ SMS yuborish
 - ✅ File upload qilish
@@ -139,6 +141,7 @@ src/
 - ✅ 3rd party API'lar bilan ishlash
 
 **Xususiyati:**
+
 - Business logic yo'q
 - Faqat tashqi servis bilan bog'lanish
 - Har doim interface orqali ishlatiladi (dependency injection uchun)
@@ -147,9 +150,11 @@ src/
 ---
 
 ### 2. `shared/utils/` - Utility Functions
+
 **Vazifasi:** Oddiy, stateless helper funktsiyalar
 
 **Qachon ishlatiladi:**
+
 - ✅ String format qilish
 - ✅ Sana format qilish
 - ✅ Random OTP generate qilish
@@ -157,6 +162,7 @@ src/
 - ✅ Validation helper'lar
 
 **Xususiyati:**
+
 - Dependency yo'q (yoki minimal)
 - Pure functions
 - Reusable
@@ -165,15 +171,18 @@ src/
 ---
 
 ### 3. `modules/[module]/domain/services/` - Domain Services
+
 **Vazifasi:** Business logic, lekin bir entity bilan bog'liq emas
 
 **Qachon ishlatiladi:**
+
 - ✅ OTP validation (bir nechta qoidalar)
 - ✅ Price calculation (discount, tax, etc.)
 - ✅ Order fulfillment logic
 - ✅ Inventory management
 
 **Xususiyati:**
+
 - Faqat business logic
 - DB yoki tashqi servislar bilan to'g'ridan-to'g'ri ishlamaydi
 - Pure domain knowledge
@@ -181,14 +190,17 @@ src/
 ---
 
 ### 4. `modules/[module]/application/services/` - Application Services
+
 **Vazifasi:** Use case'larni orchestrate qilish (turli servislarni birlashtirish)
 
 **Qachon ishlatiladi:**
+
 - ✅ Login flow (user topish + token yaratish + log qilish)
 - ✅ OTP yuborish flow (OTP generate + save + email/sms yuborish)
 - ✅ Order creation (validate + save + send notification)
 
 **Xususiyati:**
+
 - Orchestration
 - Domain services + Infrastructure services'ni birlashtiradi
 - Transaction management
@@ -197,9 +209,11 @@ src/
 ---
 
 ### 5. `shared/infrastructure/logging/` - Logger
+
 **Vazifasi:** Har qanday log yozish
 
 **Qachon ishlatiladi:**
+
 - ✅ Error log
 - ✅ Info log
 - ✅ Debug log
@@ -208,9 +222,11 @@ src/
 ---
 
 ### 6. `shared/infrastructure/filters/` - Global Exception Filters
+
 **Vazifasi:** Barcha error'larni yagona joyda handle qilish
 
 **Qachon ishlatiladi:**
+
 - ✅ HTTP exceptions
 - ✅ Domain exceptions
 - ✅ Validation errors
@@ -223,6 +239,7 @@ src/
 ### Misol 1: Email OTP yuborish
 
 **Flow:**
+
 ```
 Controller → Application Service → Utils + Infrastructure Service + Repository
 ```
@@ -230,6 +247,7 @@ Controller → Application Service → Utils + Infrastructure Service + Reposito
 **Qayerda qanday kod:**
 
 1. **Utils** - OTP generate qilish
+
 ```typescript
 // src/shared/utils/otp.utils.ts
 export class OtpUtils {
@@ -246,6 +264,7 @@ export class OtpUtils {
 ```
 
 2. **Infrastructure Service** - Email yuborish
+
 ```typescript
 // src/shared/infrastructure/services/email/email.service.ts
 @Injectable()
@@ -257,6 +276,7 @@ export class EmailService {
 ```
 
 3. **Application Service** - Hammasi birlashtirish
+
 ```typescript
 // src/modules/auth/application/services/otp.service.ts
 @Injectable()
@@ -328,10 +348,9 @@ Yangi funktsiya yozmoqchiman
 ## 🚀 Keyingi qadamlar
 
 Endi men sizga:
+
 1. Email service
 2. SMS service
 3. Logger
 4. Global error filter
 5. Utils
-
-Ularning to'liq kodini yozib beramanmi?
