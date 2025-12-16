@@ -19,19 +19,21 @@ import { CreateOtpDto } from '../../../modules/otp/application/dto/otp.create.js
 import { OtpChannel, OtpPurpose } from '../../application/dto/otp.dto.js';
 import { VerifyOtpDto } from '../../../modules/otp/application/dto/otp.verify.js';
 
-import {
-  MAX_ATTEMPTS,
-  OTP_EXPIRY_MINUTES,
-  RATE_LIMIT_MINUTES,
-} from '../../../config/env.js';
 import { generateOtpCode } from '../../utils/generate-otp.utils.js';
+import { getOtpConfig } from '../../../config/env.config.js';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class OtpService {
+  private readonly otpConfig: ReturnType<typeof getOtpConfig>;
+
   constructor(
     @InjectModel(Otp.name) private readonly otpModel: Model<OtpDocument>,
     private readonly mailService: MailService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.otpConfig = getOtpConfig(this.configService);
+  }
 
   async sendOTP(
     createOtpDto: CreateOtpDto,
@@ -47,7 +49,7 @@ export class OtpService {
 
       const code = generateOtpCode();
 
-      const otpExpiryMinutes = Number(OTP_EXPIRY_MINUTES) || 10;
+      const otpExpiryMinutes = this.otpConfig.expiryMinutes;
       const expiresAt = new Date();
       expiresAt.setMinutes(expiresAt.getMinutes() + otpExpiryMinutes);
 
@@ -59,7 +61,7 @@ export class OtpService {
         expiresAt,
         isVerified: false,
         attemptCount: 0,
-        maxAttempts: Number(MAX_ATTEMPTS) || 5,
+        maxAttempts: this.otpConfig.maxAttempts,
         metadata,
       });
 
@@ -154,7 +156,7 @@ export class OtpService {
     identifier: string,
     purpose: OtpPurpose,
   ): Promise<void> {
-    const rateLimitMinutes = Number(RATE_LIMIT_MINUTES) || 1;
+    const rateLimitMinutes = this.otpConfig.rateLimitMinutes;
     const rateLimitMs = rateLimitMinutes * 60 * 1000;
 
     const recentOtp = await this.otpModel.findOne({
@@ -183,7 +185,7 @@ export class OtpService {
   ): Promise<void> {
     try {
       const subject = this.getEmailSubject(purpose);
-      const message = this.getEmailTemplate(code, purpose);
+      const message = this.getEmailTemplate(code);
 
       await this.mailService.sendMail(email, subject, message);
     } catch (error) {
@@ -215,8 +217,8 @@ export class OtpService {
     return subjects[purpose] || 'Sizning OTP kodingiz';
   }
 
-  private getEmailTemplate(code: string, purpose: OtpPurpose): string {
-    const otpExpiryMinutes = Number(OTP_EXPIRY_MINUTES) || 10;
+  private getEmailTemplate(code: string): string {
+    const otpExpiryMinutes = this.otpConfig.expiryMinutes;
 
     return `
       <!DOCTYPE html>

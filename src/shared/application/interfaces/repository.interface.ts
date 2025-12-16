@@ -9,3 +9,8 @@ export interface AuthResponse {
     status: string;
   };
 }
+
+export interface TokenPayload {
+  userId: string;
+  email: string;
+}

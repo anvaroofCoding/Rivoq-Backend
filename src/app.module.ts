@@ -4,10 +4,14 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { MailerModule } from '@nestjs-modules/mailer';
 
 import { AuthModule } from './modules/auth/auth.module.js';
+import { validate } from './config/env.validation.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate,
+    }),
     MongooseModule.forRoot(process.env.MONGODB_ATLAS_URI as string),
     MailerModule.forRoot({
       transport: {

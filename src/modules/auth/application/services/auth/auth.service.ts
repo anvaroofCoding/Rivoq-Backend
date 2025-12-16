@@ -1,5 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { ConfigService } from '@nestjs/config';
 import { Model } from 'mongoose';
 import bcrypt from 'bcrypt';
 
@@ -13,19 +19,26 @@ import {
   normalizeEmail,
   normalizePhoneNumber,
 } from '../../../../../shared/utils/normalize.utils.js';
-import { BadRequestError } from '../../../../../shared/utils/error.utils.js';
 import { OtpService } from '../../../../../shared/infrastructure/services/otp.service.js';
 import {
   OtpChannel,
   OtpPurpose,
 } from '../../../../../shared/application/dto/otp.dto.js';
+import { TokenService } from '../../../../../shared/infrastructure/services/token.service.js';
+import { getBcryptSaltRounds } from '../../../../../config/env.config.js';
 
 @Injectable()
 export class AuthService {
+  private readonly bcryptSaltRounds: ReturnType<typeof getBcryptSaltRounds>;
+
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly otpService: OtpService,
-  ) {}
+    private readonly tokenService: TokenService,
+    private readonly configService: ConfigService,
+  ) {
+    this.bcryptSaltRounds = getBcryptSaltRounds(this.configService);
+  }
 
   async register(registerDto: RegisterDto) {
     try {
@@ -52,7 +65,7 @@ export class AuthService {
 
       const hashedPassword = await bcrypt.hash(
         registerDto.password,
-        parseInt(process.env.PASSWORD_BCRYPT_SALT_ROUNDS || '10') || 10,
+        this.bcryptSaltRounds,
       );
 
       await this.userModel.create({
@@ -78,17 +91,59 @@ export class AuthService {
         message: `Registered successfully ✅. We sent an OTP-CODE to your ${identifier}, Please activate your account`,
       };
     } catch (error) {
-      throw new BadRequestError(
+      throw new BadRequestException(
         `An error occured while registering a new user: ${error}. Please try again`,
       );
     }
   }
 
-  login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto) {
     try {
-      console.log(loginDto);
+      const existingUser = await this.userModel.findOne({
+        email: loginDto.email,
+      });
+
+      if (!existingUser)
+        throw new NotFoundException('User with this email address not found!');
+
+      if (existingUser?.status === 'inactive') {
+        throw new ForbiddenException('You should activate your account!');
+      }
+
+      const comparePassword = bcrypt.compareSync(
+        loginDto.password,
+        existingUser?.password,
+      );
+      console.log(comparePassword);
+
+      if (!comparePassword) throw new BadRequestException('Wrong Password!');
+
+      const tokenPayload = {
+        userId: existingUser._id.toString(),
+        email: existingUser.email,
+      };
+
+      const accessToken =
+        await this.tokenService.generateAccessToken(tokenPayload);
+      const refreshToken =
+        await this.tokenService.generateRefreshToken(tokenPayload);
+
+      return {
+        message: 'Login successful!',
+        accessToken,
+        refreshToken,
+        user: {
+          id: existingUser._id,
+          firstName: existingUser.firstName,
+          lastName: existingUser.lastName,
+          email: existingUser.email,
+          role: existingUser.role,
+        },
+      };
     } catch (error) {
-      console.log(error);
+      throw new BadRequestException(
+        `An error occured while logging in to system: ${error}. Please try again`,
+      );
     }
   }
 }
