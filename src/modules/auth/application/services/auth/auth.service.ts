@@ -13,19 +13,27 @@ import {
   User,
   UserDocument,
 } from '../../../../users/infrastructure/persistence/user.schema.js';
+
 import { RegisterDto } from '../../dto/register.dto.js';
 import { LoginDto } from '../../dto/login.dto.js';
-import {
-  normalizeEmail,
-  normalizePhoneNumber,
-} from '../../../../../shared/utils/normalize.utils.js';
-import { OtpService } from '../../../../../shared/infrastructure/services/otp.service.js';
 import {
   OtpChannel,
   OtpPurpose,
 } from '../../../../../shared/application/dto/otp.dto.js';
-import { TokenService } from '../../../../../shared/infrastructure/services/token.service.js';
+import { VerifyOtpDto } from '../../dto/verifyotp.dto.js';
+import { ResendOtpDto } from '../../dto/resendotp.dto.js';
+
 import { getBcryptSaltRounds } from '../../../../../config/env.config.js';
+import {
+  normalizeEmail,
+  normalizePhoneNumber,
+} from '../../../../../shared/utils/normalize.utils.js';
+import { BadRequestError } from '../../../../../shared/utils/error.utils.js';
+import { parseDeviceInfo } from '../../../../../shared/utils/device.utils.js';
+
+import { OtpService } from '../../../../../shared/infrastructure/services/otp.service.js';
+import { TokenService } from '../../../../../shared/infrastructure/services/token.service.js';
+import { SessionService } from '../../../../session/application/services/session.service.js';
 
 @Injectable()
 export class AuthService {
@@ -35,6 +43,7 @@ export class AuthService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly otpService: OtpService,
     private readonly tokenService: TokenService,
+    private readonly sessionService: SessionService,
     private readonly configService: ConfigService,
   ) {
     this.bcryptSaltRounds = getBcryptSaltRounds(this.configService);
@@ -59,25 +68,22 @@ export class AuthService {
       });
       if (existingUser) {
         return {
-          message: `This ${identifier} is already registered. Please use different email address!`,
+          message: `This ${identifier} is already registered. Please use different email address or login to system!`,
         };
       }
 
       const hashedPassword = await bcrypt.hash(
         registerDto.password,
-        this.bcryptSaltRounds,
+        this.bcryptSaltRounds.password_bcrypt_salt_rounds,
       );
 
       await this.userModel.create({
-        firstName: registerDto.firstName,
-        lastName: registerDto.lastName,
-        instagramUsername: registerDto.instagramUsername,
-        telegramUsername: registerDto.telegramUsername,
+        ...registerDto,
+        password: hashedPassword,
         email: normalizedEmailAddress,
         phoneNumber: normalizedPhoneNumber,
-        password: hashedPassword,
-        role: registerDto.role,
-        status: 'pending',
+        status: 'inactive',
+        role: 'student',
       });
 
       await this.otpService.sendOTP({
@@ -91,32 +97,94 @@ export class AuthService {
         message: `Registered successfully ✅. We sent an OTP-CODE to your ${identifier}, Please activate your account`,
       };
     } catch (error) {
-      throw new BadRequestException(
-        `An error occured while registering a new user: ${error}. Please try again`,
-      );
+      throw new BadRequestError(`${error}`);
     }
   }
 
-  async login(loginDto: LoginDto) {
+  async verifyRegistrationOtp(verifyOtpDto: VerifyOtpDto) {
+    try {
+      const findUser = await this.userModel.findOne({
+        email: verifyOtpDto.email,
+      });
+      if (!findUser) {
+        throw new NotFoundException(
+          `User with this ${verifyOtpDto.email} not found or wrong email address!`,
+        );
+      }
+
+      const checkOtpCode = await this.otpService.verifyOTP({
+        identifier: String(verifyOtpDto.email),
+        code: verifyOtpDto.code,
+        purpose: OtpPurpose.REGISTRATION,
+      });
+      if (!checkOtpCode) {
+        throw new BadRequestException(`Wrong OTP Code!`);
+      }
+
+      if (findUser?.status === 'inactive') {
+        await this.userModel.findOneAndUpdate(
+          { email: verifyOtpDto.email },
+          { status: 'active' },
+        );
+      }
+
+      return { message: 'Your account verified successfully. ✅' };
+    } catch (error) {
+      throw new BadRequestError(`${error}`);
+    }
+  }
+
+  async resendRegistrationOtp(resendOtpDto: ResendOtpDto) {
+    try {
+      const findUser = await this.userModel.findOne({
+        email: resendOtpDto.email,
+      });
+      if (!findUser) {
+        throw new NotFoundException(
+          `User with this ${resendOtpDto.email} not found or wrong email address!`,
+        );
+      }
+
+      if (findUser?.status === 'active') {
+        throw new BadRequestException(
+          `User account is already verified. No need to resend OTP Code`,
+        );
+      }
+
+      await this.otpService.resendOTP({
+        identifier: String(resendOtpDto.email),
+        purpose: OtpPurpose.REGISTRATION,
+        channel: OtpChannel.email,
+        metadata: { action: 'user-resend-registration-otp' },
+      });
+
+      return {
+        message: 'OTP Code has been resent successfully for verification',
+      };
+    } catch (error) {
+      throw new BadRequestError(`${error}`);
+    }
+  }
+
+  async login(loginDto: LoginDto, userAgent: string, ip: string) {
     try {
       const existingUser = await this.userModel.findOne({
         email: loginDto.email,
       });
-
       if (!existingUser)
-        throw new NotFoundException('User with this email address not found!');
-
-      if (existingUser?.status === 'inactive') {
-        throw new ForbiddenException('You should activate your account!');
-      }
+        throw new NotFoundException(
+          `User with this ${loginDto.email} not found!`,
+        );
 
       const comparePassword = bcrypt.compareSync(
         loginDto.password,
         existingUser?.password,
       );
-      console.log(comparePassword);
-
       if (!comparePassword) throw new BadRequestException('Wrong Password!');
+
+      if (existingUser?.status === 'inactive') {
+        throw new ForbiddenException('You should activate your account!');
+      }
 
       const tokenPayload = {
         userId: existingUser._id.toString(),
@@ -128,22 +196,52 @@ export class AuthService {
       const refreshToken =
         await this.tokenService.generateRefreshToken(tokenPayload);
 
-      return {
-        message: 'Login successful!',
+      const deviceInfo = parseDeviceInfo(userAgent, ip);
+
+      const session = await this.sessionService.createSession({
+        userId: existingUser._id.toString(),
         accessToken,
         refreshToken,
-        user: {
-          id: existingUser._id,
-          firstName: existingUser.firstName,
-          lastName: existingUser.lastName,
-          email: existingUser.email,
-          role: existingUser.role,
+        deviceInfo,
+        ip,
+      });
+
+      return {
+        accessToken,
+        refreshToken,
+        device: {
+          deviceName: deviceInfo.deviceName,
+          browser: deviceInfo.browser,
+          os: deviceInfo.os,
+          loginAt: session.loginAt,
         },
       };
     } catch (error) {
-      throw new BadRequestException(
-        `An error occured while logging in to system: ${error}. Please try again`,
-      );
+      throw new BadRequestError(`${error}`);
+    }
+  }
+
+  async logout(accessToken: string) {
+    try {
+      await this.sessionService.deleteSessionByToken(accessToken);
+
+      return {
+        message: 'Logout successful. Session terminated.',
+      };
+    } catch (error) {
+      throw new BadRequestError(`${error}`);
+    }
+  }
+
+  async logoutAllDevices(userId: string) {
+    try {
+      await this.sessionService.deleteAllUserSessions(userId);
+
+      return {
+        message: 'All sessions have been terminated successfully.',
+      };
+    } catch (error) {
+      throw new BadRequestError(`${error}`);
     }
   }
 }

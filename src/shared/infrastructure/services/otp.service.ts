@@ -1,27 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
 
 import {
   Otp,
   OtpDocument,
 } from '../../../modules/otp/infrastructure/persistence/otp.schema.js';
 import { MailService } from './email.service.js';
+
 import {
   TooManyRequestsError,
   UnauthorizedError,
   NotFoundError,
-  InternalServerError,
   BadRequestError,
   ServiceUnavailableError,
 } from '../../utils/error.utils.js';
+import { generateOtpCode } from '../../utils/generate-otp.utils.js';
+
 import { CreateOtpDto } from '../../../modules/otp/application/dto/otp.create.js';
 import { OtpChannel, OtpPurpose } from '../../application/dto/otp.dto.js';
 import { VerifyOtpDto } from '../../../modules/otp/application/dto/otp.verify.js';
 
-import { generateOtpCode } from '../../utils/generate-otp.utils.js';
 import { getOtpConfig } from '../../../config/env.config.js';
-import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class OtpService {
@@ -53,7 +54,7 @@ export class OtpService {
       const expiresAt = new Date();
       expiresAt.setMinutes(expiresAt.getMinutes() + otpExpiryMinutes);
 
-      await this.otpModel.create({
+      const otpData = {
         identifier: identifier.toLowerCase(),
         code,
         purpose,
@@ -63,7 +64,9 @@ export class OtpService {
         attemptCount: 0,
         maxAttempts: this.otpConfig.maxAttempts,
         metadata,
-      });
+      };
+
+      await this.otpModel.create(otpData);
 
       if (channel === OtpChannel.email) {
         await this.sendOTPByEmail(identifier, code, purpose);
@@ -92,6 +95,7 @@ export class OtpService {
       identifier: identifier.toLowerCase(),
       purpose,
       isVerified: false,
+      code,
     });
 
     if (!otp) {
@@ -136,20 +140,14 @@ export class OtpService {
     message: string;
     expiresAt: Date;
   }> {
-    return this.sendOTP(createOtpDto);
+    return await this.sendOTP(createOtpDto);
   }
 
   async deleteOTP(identifier: string, purpose: OtpPurpose): Promise<void> {
-    try {
-      await this.otpModel.deleteMany({
-        identifier: identifier.toLowerCase(),
-        purpose,
-      });
-    } catch (error) {
-      throw new InternalServerError(
-        `Failed to clear previous OTP codes from database: ${error}`,
-      );
-    }
+    await this.otpModel.deleteMany({
+      identifier: identifier.toLowerCase(),
+      purpose,
+    });
   }
 
   private async checkRateLimit(
@@ -213,6 +211,7 @@ export class OtpService {
       [OtpPurpose.EMAIL_VERIFICATION]: 'Emailni tasdiqlash uchun OTP kod',
       [OtpPurpose.PHONE_VERIFICATION]:
         'Telefon raqamni tasdiqlash uchun OTP kod',
+      [OtpPurpose.RESEND_OTP_CODE]: 'OTP kodni qayta olish uchun',
     };
     return subjects[purpose] || 'Sizning OTP kodingiz';
   }

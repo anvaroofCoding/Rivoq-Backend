@@ -42,7 +42,7 @@ export class User {
 
   @Prop({
     type: SchemaTypes.String,
-    enum: ['pending', 'active', 'inactive'],
+    enum: ['active', 'inactive'],
     default: 'inactive',
   })
   status: string;

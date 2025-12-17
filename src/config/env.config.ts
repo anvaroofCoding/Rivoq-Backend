@@ -1,6 +1,8 @@
 import { ConfigService } from '@nestjs/config';
 import {
+  BcryptConfig,
   DatabaseConfig,
+  DeviceConfig,
   EmailConfig,
   JwtConfig,
   OtpConfig,
@@ -14,16 +16,40 @@ export const getConfig = <T>(configService: ConfigService, key: string): T => {
   return value;
 };
 
+const convertToSeconds = (timeString: string): number => {
+  const regex = /^(\d+)(s|m|h|d)$/;
+  const match = timeString.match(regex);
+
+  if (!match) {
+    throw new Error(
+      `Invalid time format: ${timeString}. Expected format: 15m, 1h, 7d, etc.`,
+    );
+  }
+
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+
+  const multipliers: Record<string, number> = {
+    s: 1,
+    m: 60,
+    h: 3600,
+    d: 86400,
+  };
+
+  return value * multipliers[unit];
+};
+
 export const getJwtConfig = (configService: ConfigService): JwtConfig => ({
   accessSecret: getConfig<string>(configService, 'JWT_ACCESS_TOKEN_SECRET_KEY'),
-  accessExpiry: getConfig<number>(configService, 'JWT_ACCESS_TOKEN_EXPIRES_IN'),
+  accessExpiry: convertToSeconds(
+    getConfig<string>(configService, 'JWT_ACCESS_TOKEN_EXPIRES_IN'),
+  ),
   refreshSecret: getConfig<string>(
     configService,
     'JWT_REFRESH_TOKEN_SECRET_KEY',
   ),
-  refreshExpiry: getConfig<number>(
-    configService,
-    'JWT_REFRESH_TOKEN_EXPIRES_IN',
+  refreshExpiry: convertToSeconds(
+    getConfig<string>(configService, 'JWT_REFRESH_TOKEN_EXPIRES_IN'),
   ),
 });
 
@@ -45,6 +71,17 @@ export const getOtpConfig = (configService: ConfigService): OtpConfig => ({
   rateLimitMinutes: getConfig<number>(configService, 'RATE_LIMIT_MINUTES'),
 });
 
-export const getBcryptSaltRounds = (configService: ConfigService): number => {
-  return getConfig<number>(configService, 'PASSWORD_BCRYPT_SALT_ROUNDS');
-};
+export const getBcryptSaltRounds = (
+  configService: ConfigService,
+): BcryptConfig => ({
+  password_bcrypt_salt_rounds: getConfig<number>(
+    configService,
+    'PASSWORD_BCRYPT_SALT_ROUNDS',
+  ),
+});
+
+export const getDeviceConfig = (
+  configService: ConfigService,
+): DeviceConfig => ({
+  max_devices: getConfig<number>(configService, 'MAX_DEVICES'),
+});

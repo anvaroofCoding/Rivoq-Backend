@@ -23,9 +23,12 @@ export interface EnvironmentVariables {
   JWT_ACCESS_TOKEN_SECRET_KEY: string;
   JWT_ACCESS_TOKEN_EXPIRES_IN: string;
 
-  //Refresh Token Config
+  // Refresh Token Config
   JWT_REFRESH_TOKEN_SECRET_KEY: string;
   JWT_REFRESH_TOKEN_EXPIRES_IN: string;
+
+  // Device Config
+  MAX_DEVICES: number;
 }
 
 // JWT Config
@@ -53,4 +56,14 @@ export interface OtpConfig {
   expiryMinutes: number;
   maxAttempts: number;
   rateLimitMinutes: number;
+}
+
+// Bcrypt config
+export interface BcryptConfig {
+  password_bcrypt_salt_rounds: number;
+}
+
+// Device config
+export interface DeviceConfig {
+  max_devices: number;
 }

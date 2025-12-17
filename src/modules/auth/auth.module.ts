@@ -7,6 +7,7 @@ import { AuthService } from './application/services/auth/auth.service.js';
 import { OtpService } from '../../shared/infrastructure/services/otp.service.js';
 import { MailService } from '../../shared/infrastructure/services/email.service.js';
 import { TokenService } from '../../shared/infrastructure/services/token.service.js';
+import { SessionModule } from '../session/session.module.js';
 
 import {
   User,
@@ -24,6 +25,7 @@ import {
       { name: Otp.name, schema: OtpSchema },
     ]),
     JwtModule.register({}),
+    SessionModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, OtpService, MailService, TokenService],

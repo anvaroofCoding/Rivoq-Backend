@@ -15,6 +15,15 @@ export class AppError extends HttpException {
     Error.captureStackTrace(this, this.constructor);
     Object.setPrototypeOf(this, new.target.prototype);
   }
+
+  getResponse(): string | object {
+    return {
+      status: this.statusCode,
+      message: this.message,
+      statusType: this.statusType,
+      isOperational: this.isOperational,
+    };
+  }
 }
 
 export class BadRequestError extends AppError {

@@ -1,10 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>('PORT') ?? 5001;
 
   const config = new DocumentBuilder()
     .setTitle('The Rivoq Online Education Platform Bakckend API documentation')
@@ -20,9 +24,9 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
 
-  await app.listen(process.env.PORT ?? 5001, () => {
+  await app.listen(port, () => {
     console.log(
-      `The Rivoq project's server successfully started on port: ${process.env.PORT} || Swagger: http://localhost:${process.env.PORT}/api-docs`,
+      `The Rivoq project's server successfully started on port: ${port} || Swagger: http://localhost:${port}/api-docs`,
     );
   });
 }

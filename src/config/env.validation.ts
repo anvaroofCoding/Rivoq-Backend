@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   Matches,
   Max,
@@ -94,6 +95,10 @@ export class EnvironmentVariables {
       'JWT_REFRESH_TOKEN_EXPIRES_IN must be in format: 15m, 1h, 7d, etc.',
   })
   JWT_REFRESH_TOKEN_EXPIRES_IN: string;
+
+  @IsNumber()
+  @IsPositive()
+  MAX_DEVICES: number = 2;
 }
 
 import { plainToInstance } from 'class-transformer';

@@ -29,6 +29,7 @@ export class Otp {
       'password-reset',
       'email-verification',
       'phone-verification',
+      'resend-registration-otp',
     ],
   })
   purpose: string;
