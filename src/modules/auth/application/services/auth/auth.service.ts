@@ -22,6 +22,8 @@ import {
 } from '../../../../../shared/application/dto/otp.dto.js';
 import { VerifyOtpDto } from '../../dto/verifyotp.dto.js';
 import { ResendOtpDto } from '../../dto/resendotp.dto.js';
+import { ForgotPasswordDto } from '../../dto/forgot-password.dto.js';
+import { ResetPasswordDto } from '../../dto/reset-password.dto.js';
 
 import { getBcryptSaltRounds } from '../../../../../config/env.config.js';
 import {
@@ -398,6 +400,92 @@ export class AuthService {
       };
     } catch (error) {
       throw new BadRequestError(`GitHub login failed: ${error}`);
+    }
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    try {
+      const normalizedEmailAddress = normalizeEmail(forgotPasswordDto.email);
+
+      const user = await this.userModel.findOne({
+        email: normalizedEmailAddress,
+      });
+      if (!user) {
+        throw new NotFoundException(
+          `User with email ${normalizedEmailAddress} not found!`,
+        );
+      }
+
+      if (user.provider !== 'local') {
+        throw new BadRequestException(
+          `This account is linked with ${user.provider}. Please use ${user.provider} to login.`,
+        );
+      }
+
+      await this.otpService.sendOTP({
+        identifier: String(normalizedEmailAddress),
+        purpose: OtpPurpose.PASSWORD_RESET,
+        channel: OtpChannel.email,
+        metadata: { action: 'password-reset' },
+      });
+
+      return {
+        message: `OTP code has been sent to ${normalizedEmailAddress}. Please check your email.`,
+      };
+    } catch (error) {
+      throw new BadRequestError(`${error}`);
+    }
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    try {
+      const normalizedEmail = normalizeEmail(resetPasswordDto.email);
+
+      const user = await this.userModel.findOne({ email: normalizedEmail });
+      if (!user) {
+        throw new NotFoundException(
+          `User with email ${normalizedEmail} not found!`,
+        );
+      }
+
+      if (user.provider !== 'local') {
+        throw new BadRequestException(
+          `This account is linked with ${user.provider}. Please use ${user.provider} to login.`,
+        );
+      }
+
+      const isValidOtp = await this.otpService.verifyOTP({
+        identifier: String(normalizedEmail),
+        code: resetPasswordDto.code,
+        purpose: OtpPurpose.PASSWORD_RESET,
+      });
+
+      if (!isValidOtp) {
+        throw new BadRequestException('Invalid or expired OTP code!');
+      }
+
+      if (resetPasswordDto.newPassword !== resetPasswordDto.confirmPassword) {
+        throw new BadRequestException(
+          'New password and confirm password do not match!',
+        );
+      }
+
+      const hashedPassword = await bcrypt.hash(
+        resetPasswordDto.newPassword,
+        this.bcryptSaltRounds.password_bcrypt_salt_rounds,
+      );
+
+      user.password = hashedPassword;
+      await user.save();
+
+      await this.sessionService.deleteAllUserSessions(user._id.toString());
+
+      return {
+        message:
+          'Password reset successfully! All sessions have been terminated. Please login with your new password.',
+      };
+    } catch (error) {
+      throw new BadRequestError(`${error}`);
     }
   }
 }

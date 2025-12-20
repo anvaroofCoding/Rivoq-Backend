@@ -19,6 +19,8 @@ import { LoginDto } from '../../application/dto/login.dto.js';
 import { RegisterDto } from '../../application/dto/register.dto.js';
 import { VerifyOtpDto } from '../../application/dto/verifyotp.dto.js';
 import { ResendOtpDto } from '../../application/dto/resendotp.dto.js';
+import { ForgotPasswordDto } from '../../application/dto/forgot-password.dto.js';
+import { ResetPasswordDto } from '../../application/dto/reset-password.dto.js';
 import {
   GoogleUser,
   GitHubUser,
@@ -62,6 +64,16 @@ export class AuthController {
   @Post('logout-all-devices')
   async logoutAllDevices(@Body('userId') userId: string) {
     return await this.service.logoutAllDevices(userId);
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return await this.service.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return await this.service.resetPassword(resetPasswordDto);
   }
 
   @Get('google')
