@@ -29,6 +29,16 @@ export interface EnvironmentVariables {
 
   // Device Config
   MAX_DEVICES: number;
+
+  // Google OAuth Config
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  GOOGLE_CALLBACK_URL: string;
+
+  // GitHub OAuth Config
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
+  GITHUB_CALLBACK_URL: string;
 }
 
 // JWT Config
@@ -66,4 +76,18 @@ export interface BcryptConfig {
 // Device config
 export interface DeviceConfig {
   max_devices: number;
+}
+
+// Google OAuth Config
+export interface GoogleOAuthConfig {
+  clientID: string;
+  clientSecret: string;
+  callbackURL: string;
+}
+
+// GitHub OAuth Config
+export interface GitHubOAuthConfig {
+  clientID: string;
+  clientSecret: string;
+  callbackURL: string;
 }

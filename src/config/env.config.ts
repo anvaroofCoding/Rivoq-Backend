@@ -6,6 +6,8 @@ import {
   EmailConfig,
   JwtConfig,
   OtpConfig,
+  GoogleOAuthConfig,
+  GitHubOAuthConfig,
 } from './env.interface.js';
 
 export const getConfig = <T>(configService: ConfigService, key: string): T => {
@@ -84,4 +86,20 @@ export const getDeviceConfig = (
   configService: ConfigService,
 ): DeviceConfig => ({
   max_devices: getConfig<number>(configService, 'MAX_DEVICES'),
+});
+
+export const getGoogleOAuthConfig = (
+  configService: ConfigService,
+): GoogleOAuthConfig => ({
+  clientID: getConfig<string>(configService, 'GOOGLE_CLIENT_ID'),
+  clientSecret: getConfig<string>(configService, 'GOOGLE_CLIENT_SECRET'),
+  callbackURL: getConfig<string>(configService, 'GOOGLE_CALLBACK_URL'),
+});
+
+export const getGitHubOAuthConfig = (
+  configService: ConfigService,
+): GitHubOAuthConfig => ({
+  clientID: getConfig<string>(configService, 'GITHUB_CLIENT_ID'),
+  clientSecret: getConfig<string>(configService, 'GITHUB_CLIENT_SECRET'),
+  callbackURL: getConfig<string>(configService, 'GITHUB_CALLBACK_URL'),
 });

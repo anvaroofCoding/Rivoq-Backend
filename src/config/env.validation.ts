@@ -99,6 +99,30 @@ export class EnvironmentVariables {
   @IsNumber()
   @IsPositive()
   MAX_DEVICES: number = 2;
+
+  @IsString()
+  @IsNotEmpty()
+  GOOGLE_CLIENT_ID: string;
+
+  @IsString()
+  @IsNotEmpty()
+  GOOGLE_CLIENT_SECRET: string;
+
+  @IsString()
+  @IsNotEmpty()
+  GOOGLE_CALLBACK_URL: string;
+
+  @IsString()
+  @IsNotEmpty()
+  GITHUB_CLIENT_ID: string;
+
+  @IsString()
+  @IsNotEmpty()
+  GITHUB_CLIENT_SECRET: string;
+
+  @IsString()
+  @IsNotEmpty()
+  GITHUB_CALLBACK_URL: string;
 }
 
 import { plainToInstance } from 'class-transformer';

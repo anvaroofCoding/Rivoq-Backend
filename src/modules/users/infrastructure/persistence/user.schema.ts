@@ -37,7 +37,7 @@ export class User {
   })
   email: string;
 
-  @Prop({ type: SchemaTypes.String, required: [true, 'Password is required'] })
+  @Prop({ type: SchemaTypes.String })
   password: string;
 
   @Prop({
@@ -52,6 +52,25 @@ export class User {
     enum: ['admin', 'superadmin', 'teacher', 'student', 'operator'],
   })
   role: string;
+
+  @Prop({ type: SchemaTypes.String, unique: true, sparse: true })
+  googleId: string;
+
+  @Prop({ type: SchemaTypes.String, unique: true, sparse: true })
+  githubId: string;
+
+  @Prop({ type: SchemaTypes.String })
+  photo: string;
+
+  @Prop({
+    type: SchemaTypes.String,
+    enum: ['local', 'google', 'github'],
+    default: 'local',
+  })
+  provider: string;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

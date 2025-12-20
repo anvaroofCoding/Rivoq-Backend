@@ -34,6 +34,10 @@ import { parseDeviceInfo } from '../../../../../shared/utils/device.utils.js';
 import { OtpService } from '../../../../../shared/infrastructure/services/otp.service.js';
 import { TokenService } from '../../../../../shared/infrastructure/services/token.service.js';
 import { SessionService } from '../../../../session/application/services/session.service.js';
+import {
+  GitHubUser,
+  GoogleUser,
+} from '../../../../../shared/application/interfaces/repository.interface.js';
 
 @Injectable()
 export class AuthService {
@@ -242,6 +246,158 @@ export class AuthService {
       };
     } catch (error) {
       throw new BadRequestError(`${error}`);
+    }
+  }
+
+  async googleLogin(googleUser: GoogleUser, userAgent: string, ip: string) {
+    try {
+      let user = await this.userModel.findOne({
+        googleId: googleUser.googleId,
+      });
+
+      if (!user) {
+        user = await this.userModel.findOne({
+          email: googleUser.email,
+        });
+
+        if (user) {
+          user.googleId = googleUser.googleId;
+          user.photo = googleUser.photo || user.photo;
+          user.provider = 'google';
+          user.status = 'active';
+          await user.save();
+        } else {
+          user = await this.userModel.create({
+            googleId: googleUser.googleId,
+            email: googleUser.email,
+            firstName: googleUser.firstName,
+            lastName: googleUser.lastName,
+            photo: googleUser.photo,
+            provider: 'google',
+            status: 'active',
+            role: 'student',
+          });
+        }
+      }
+
+      const tokenPayload = {
+        userId: user._id.toString(),
+        email: user.email,
+      };
+
+      const accessToken =
+        await this.tokenService.generateAccessToken(tokenPayload);
+      const refreshToken =
+        await this.tokenService.generateRefreshToken(tokenPayload);
+
+      const deviceInfo = parseDeviceInfo(userAgent, ip);
+
+      const session = await this.sessionService.createSession({
+        userId: user._id.toString(),
+        accessToken,
+        refreshToken,
+        deviceInfo,
+        ip,
+      });
+
+      return {
+        message: 'Google login successful!',
+        accessToken,
+        refreshToken,
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          photo: user.photo,
+          role: user.role,
+          provider: user.provider,
+        },
+        device: {
+          deviceName: deviceInfo.deviceName,
+          browser: deviceInfo.browser,
+          os: deviceInfo.os,
+          loginAt: session.loginAt,
+        },
+      };
+    } catch (error) {
+      throw new BadRequestError(`Google login failed: ${error}`);
+    }
+  }
+
+  async githubLogin(githubUser: GitHubUser, userAgent: string, ip: string) {
+    try {
+      let user = await this.userModel.findOne({
+        githubId: githubUser.githubId,
+      });
+
+      if (!user) {
+        user = await this.userModel.findOne({
+          email: githubUser.email,
+        });
+
+        if (user) {
+          user.githubId = githubUser.githubId;
+          user.photo = githubUser.photo || user.photo;
+          user.provider = 'github';
+          user.status = 'active';
+          await user.save();
+        } else {
+          user = await this.userModel.create({
+            githubId: githubUser.githubId,
+            email: githubUser.email,
+            firstName: githubUser.firstName,
+            lastName: githubUser.lastName,
+            photo: githubUser.photo,
+            provider: 'github',
+            status: 'active',
+            role: 'student',
+          });
+        }
+      }
+
+      const tokenPayload = {
+        userId: user._id.toString(),
+        email: user.email,
+      };
+
+      const accessToken =
+        await this.tokenService.generateAccessToken(tokenPayload);
+      const refreshToken =
+        await this.tokenService.generateRefreshToken(tokenPayload);
+
+      const deviceInfo = parseDeviceInfo(userAgent, ip);
+
+      const session = await this.sessionService.createSession({
+        userId: user._id.toString(),
+        accessToken,
+        refreshToken,
+        deviceInfo,
+        ip,
+      });
+
+      return {
+        message: 'GitHub login successful!',
+        accessToken,
+        refreshToken,
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          photo: user.photo,
+          role: user.role,
+          provider: user.provider,
+        },
+        device: {
+          deviceName: deviceInfo.deviceName,
+          browser: deviceInfo.browser,
+          os: deviceInfo.os,
+          loginAt: session.loginAt,
+        },
+      };
+    } catch (error) {
+      throw new BadRequestError(`GitHub login failed: ${error}`);
     }
   }
 }
