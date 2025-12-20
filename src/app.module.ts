@@ -1,11 +1,15 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
-import { AuthModule } from './modules/auth/auth.module.js';
 import { validate } from './config/env.validation.js';
 import { getDatabaseConfig, getEmailConfig } from './config/env.config.js';
+
+import { AuthModule } from './modules/auth/auth.module.js';
+import { UserModule } from './modules/users/user.module.js';
+import { TeachersModule } from './modules/teachers/teachers.module.js';
+import { StudentsModule } from './modules/students/students.module.js';
 
 @Module({
   imports: [
@@ -38,8 +42,12 @@ import { getDatabaseConfig, getEmailConfig } from './config/env.config.js';
       },
     }),
     AuthModule,
+    UserModule,
+    TeachersModule,
+    StudentsModule,
   ],
   controllers: [],
   providers: [],
+  exports: [],
 })
 export class AppModule {}

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsPhoneNumber, IsString } from 'class-validator';
+
 import {
   UserRole,
   UserStatus,
@@ -16,13 +17,23 @@ export class CreateAdminDto {
   @IsNotEmpty()
   lastName: string;
 
+  @ApiProperty({ example: 'https://www.instagram.com/islom_intech' })
+  @IsString()
+  @IsNotEmpty()
+  instagramUsername: string;
+
+  @ApiProperty({ example: 'https://t.me/isamu_web' })
+  @IsString()
+  @IsNotEmpty()
+  telegramUsername: string;
+
   @ApiProperty({ example: '+998947932005' })
   @IsString()
   @IsPhoneNumber()
   @IsNotEmpty()
   phoneNumber: string;
 
-  @ApiProperty({ example: 'abdulborimahammadjanov86@gmail.com' })
+  @ApiProperty({ example: 'islomanvarov05@gmail.com' })
   @IsString()
   @IsEmail()
   @IsNotEmpty()
@@ -33,7 +44,7 @@ export class CreateAdminDto {
   @IsNotEmpty()
   password: string;
 
-  status: UserStatus.pending;
+  status: UserStatus.active;
 
   @ApiProperty({
     enum: ['admin', 'superadmin', 'operator', 'teacher', 'student'],
