@@ -19,11 +19,40 @@ export class User {
   })
   lastName: string;
 
+  @Prop({
+    type: SchemaTypes.String,
+    required: [true, "Father's name is required"],
+    trim: true,
+  })
+  fathersName: string;
+
+  @Prop({ type: SchemaTypes.Date, required: [true, 'BirthDay is required'] })
+  birthDay: Date;
+
+  @Prop({
+    type: SchemaTypes.String,
+    required: [true, 'Nationality is required'],
+    trim: true,
+  })
+  nationality: string;
+
   @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
   instagramUsername: string;
 
   @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
   telegramUsername: string;
+
+  @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
+  githubUsername: string;
+
+  @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
+  linkedInUsername: string;
+
+  @Prop({ type: SchemaTypes.String })
+  address: string;
+
+  @Prop({ type: SchemaTypes.String })
+  bio: string;
 
   @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
   phoneNumber: string;

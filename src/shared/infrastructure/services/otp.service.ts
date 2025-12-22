@@ -100,15 +100,13 @@ export class OtpService {
 
     if (!otp) {
       throw new NotFoundError(
-        'OTP topilmadi yoki muddati tugagan. Iltimos, qayta yuboring.',
+        'OTP code not found or expired. Please try again.',
       );
     }
 
     if (new Date() > otp.expiresAt) {
       await this.otpModel.deleteOne({ _id: otp._id });
-      throw new UnauthorizedError(
-        'OTP kodining muddati tugagan. Iltimos, qayta yuboring.',
-      );
+      throw new UnauthorizedError('OTP code has expired. Please try again.');
     }
 
     if (otp.attemptCount >= otp.maxAttempts) {
@@ -123,7 +121,7 @@ export class OtpService {
       await otp.save();
 
       throw new UnauthorizedError(
-        `Noto'g'ri OTP kod. Qolgan urinishlar: ${otp.maxAttempts - otp.attemptCount}`,
+        `Wrong OTP code. Qolgan urinishlar: ${otp.maxAttempts - otp.attemptCount}`,
       );
     }
 
