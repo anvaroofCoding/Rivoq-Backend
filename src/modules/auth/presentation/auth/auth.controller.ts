@@ -8,7 +8,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiExcludeEndpoint,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { AuthService } from '../../application/services/auth/auth.service.js';
 import { getClientIp } from '../../../../shared/utils/device.utils.js';
@@ -77,10 +82,20 @@ export class AuthController {
   }
 
   @Get('google')
+  @ApiOperation({
+    summary: 'Google OAuth Login',
+    description:
+      'Redirects to Google login page. Open this URL in browser: https://rivoq-backend.onrender.com/auth/google',
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirects to Google OAuth',
+  })
   @UseGuards(GoogleAuthGuard)
   async googleLogin() {}
 
   @Get('google/callback')
+  @ApiExcludeEndpoint()
   @UseGuards(GoogleAuthGuard)
   async googleCallback(@Req() request: Request) {
     const user = request.user as GoogleUser;
@@ -92,10 +107,20 @@ export class AuthController {
   }
 
   @Get('github')
+  @ApiOperation({
+    summary: 'GitHub OAuth Login',
+    description:
+      'Redirects to GitHub login page. Open this URL in browser: https://rivoq-backend.onrender.com/auth/github',
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirects to GitHub OAuth',
+  })
   @UseGuards(GitHubAuthGuard)
   async githubLogin() {}
 
   @Get('github/callback')
+  @ApiExcludeEndpoint()
   @UseGuards(GitHubAuthGuard)
   async githubCallback(@Req() request: Request) {
     const user = request.user as GitHubUser;
