@@ -16,6 +16,7 @@ import { StudentsModule } from './modules/students/students.module.js';
     ConfigModule.forRoot({
       isGlobal: true,
       validate,
+      envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
     }),
     MongooseModule.forRootAsync({
       inject: [ConfigService],
