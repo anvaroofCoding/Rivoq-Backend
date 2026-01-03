@@ -16,6 +16,7 @@ import {
 
 import { RegisterDto } from '../../dto/register.dto.js';
 import { LoginDto } from '../../dto/login.dto.js';
+import { CompleteProfileDto } from '../../dto/complete-profile.dto.js';
 import {
   OtpChannel,
   OtpPurpose,
@@ -26,16 +27,15 @@ import { ForgotPasswordDto } from '../../dto/forgot-password.dto.js';
 import { ResetPasswordDto } from '../../dto/reset-password.dto.js';
 
 import { getBcryptSaltRounds } from '../../../../../config/env.config.js';
-import {
-  normalizeEmail,
-  normalizePhoneNumber,
-} from '../../../../../shared/utils/normalize.utils.js';
+import { normalizeEmail } from '../../../../../shared/utils/normalize.utils.js';
 import { BadRequestError } from '../../../../../shared/utils/error.utils.js';
 import { parseDeviceInfo } from '../../../../../shared/utils/device.utils.js';
 
 import { OtpService } from '../../../../../shared/infrastructure/services/otp.service.js';
 import { TokenService } from '../../../../../shared/infrastructure/services/token.service.js';
 import { SessionService } from '../../../../session/application/services/session.service.js';
+import { UserProfileService } from '../../../../users/application/services/user-profile.service.js';
+
 import {
   GitHubUser,
   GoogleUser,
@@ -50,6 +50,7 @@ export class AuthService {
     private readonly otpService: OtpService,
     private readonly tokenService: TokenService,
     private readonly sessionService: SessionService,
+    private readonly userProfileService: UserProfileService,
     private readonly configService: ConfigService,
   ) {
     this.bcryptSaltRounds = getBcryptSaltRounds(this.configService);
@@ -57,25 +58,15 @@ export class AuthService {
 
   async register(registerDto: RegisterDto) {
     try {
-      const normalizedEmailAddress = registerDto.email
-        ? normalizeEmail(registerDto.email)
-        : undefined;
-      const normalizedPhoneNumber = registerDto.phoneNumber
-        ? normalizePhoneNumber(registerDto.phoneNumber)
-        : undefined;
-
-      const identifier = normalizedEmailAddress || normalizedPhoneNumber;
-      const channel: OtpChannel = normalizedEmailAddress
-        ? OtpChannel.email
-        : OtpChannel.sms;
+      const normalizedEmailAddress = normalizeEmail(registerDto.email);
 
       const existingUser = await this.userModel.findOne({
         email: normalizedEmailAddress,
       });
       if (existingUser) {
-        return {
-          message: `This ${identifier} is already registered. Please use different email address or login to system!`,
-        };
+        throw new BadRequestException(
+          `This email ${normalizedEmailAddress} is already registered. Please use a different email or login!`,
+        );
       }
 
       const hashedPassword = await bcrypt.hash(
@@ -84,23 +75,23 @@ export class AuthService {
       );
 
       await this.userModel.create({
-        ...registerDto,
-        password: hashedPassword,
         email: normalizedEmailAddress,
-        phoneNumber: normalizedPhoneNumber,
+        password: hashedPassword,
         status: 'inactive',
         role: 'student',
+        provider: 'local',
+        isProfileCompleted: false,
       });
 
       await this.otpService.sendOTP({
-        identifier: String(identifier),
+        identifier: String(normalizedEmailAddress),
         purpose: OtpPurpose.REGISTRATION,
-        channel: channel,
+        channel: OtpChannel.email,
         metadata: { action: 'user-registration' },
       });
 
       return {
-        message: `Registered successfully ✅. We sent an OTP-CODE to your ${identifier}, Please activate your account`,
+        message: `Registration successful! ✅ An OTP code has been sent to ${normalizedEmailAddress}. Please activate your account.`,
       };
     } catch (error) {
       throw new BadRequestError(`${error}`);
@@ -264,6 +255,8 @@ export class AuthService {
 
         if (user) {
           user.googleId = googleUser.googleId;
+          user.firstName = googleUser.firstName;
+          user.lastName = googleUser.lastName;
           user.photo = googleUser.photo || user.photo;
           user.provider = 'google';
           user.status = 'active';
@@ -278,6 +271,7 @@ export class AuthService {
             provider: 'google',
             status: 'active',
             role: 'student',
+            isProfileCompleted: false,
           });
         }
       }
@@ -303,17 +297,20 @@ export class AuthService {
       });
 
       return {
-        message: 'Google login successful!',
+        message: user.isProfileCompleted
+          ? 'Successfully logged in with Google!'
+          : 'Successfully logged in with Google! Please complete your profile.',
         accessToken,
         refreshToken,
         user: {
           id: user._id,
+          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          email: user.email,
           photo: user.photo,
           role: user.role,
           provider: user.provider,
+          isProfileCompleted: user.isProfileCompleted,
         },
         device: {
           deviceName: deviceInfo.deviceName,
@@ -340,6 +337,8 @@ export class AuthService {
 
         if (user) {
           user.githubId = githubUser.githubId;
+          user.firstName = githubUser.firstName;
+          user.lastName = githubUser.lastName;
           user.photo = githubUser.photo || user.photo;
           user.provider = 'github';
           user.status = 'active';
@@ -354,6 +353,7 @@ export class AuthService {
             provider: 'github',
             status: 'active',
             role: 'student',
+            isProfileCompleted: false,
           });
         }
       }
@@ -379,17 +379,20 @@ export class AuthService {
       });
 
       return {
-        message: 'GitHub login successful!',
+        message: user.isProfileCompleted
+          ? 'Successfully logged in with GitHub!'
+          : 'Successfully logged in with GitHub! Please complete your profile.',
         accessToken,
         refreshToken,
         user: {
           id: user._id,
+          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          email: user.email,
           photo: user.photo,
           role: user.role,
           provider: user.provider,
+          isProfileCompleted: user.isProfileCompleted,
         },
         device: {
           deviceName: deviceInfo.deviceName,
@@ -483,6 +486,42 @@ export class AuthService {
       return {
         message:
           'Password reset successfully! All sessions have been terminated. Please login with your new password.',
+      };
+    } catch (error) {
+      throw new BadRequestError(`${error}`);
+    }
+  }
+
+  async completeProfile(
+    userId: string,
+    completeProfileDto: CompleteProfileDto,
+  ) {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found!');
+      }
+
+      if (user.isProfileCompleted) {
+        throw new BadRequestException(
+          'Your profile is already completed. If you want to modify it, please go to profile settings.',
+        );
+      }
+
+      if (user.status !== 'active') {
+        throw new ForbiddenException(
+          'Please activate your account first (via OTP verification).',
+        );
+      }
+
+      await this.userProfileService.createProfile(userId, completeProfileDto);
+
+      user.isProfileCompleted = true;
+      await user.save();
+
+      return {
+        message: 'Your profile has been completed successfully! ✅',
+        isProfileCompleted: true,
       };
     } catch (error) {
       throw new BadRequestError(`${error}`);

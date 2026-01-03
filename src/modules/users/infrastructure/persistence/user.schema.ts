@@ -5,57 +5,11 @@ export type UserDocument = HydratedDocument<User>;
 
 @Schema({ timestamps: true, versionKey: false })
 export class User {
-  @Prop({
-    type: SchemaTypes.String,
-    required: [true, 'FirstName is required'],
-    trim: true,
-  })
+  @Prop({ type: SchemaTypes.String, trim: true })
   firstName: string;
 
-  @Prop({
-    type: SchemaTypes.String,
-    required: [true, 'LastName is required'],
-    trim: true,
-  })
+  @Prop({ type: SchemaTypes.String, trim: true })
   lastName: string;
-
-  @Prop({
-    type: SchemaTypes.String,
-    required: [true, "Father's name is required"],
-    trim: true,
-  })
-  fathersName: string;
-
-  @Prop({ type: SchemaTypes.Date, required: [true, 'BirthDay is required'] })
-  birthDay: Date;
-
-  @Prop({
-    type: SchemaTypes.String,
-    required: [true, 'Nationality is required'],
-    trim: true,
-  })
-  nationality: string;
-
-  @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
-  instagramUsername: string;
-
-  @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
-  telegramUsername: string;
-
-  @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
-  githubUsername: string;
-
-  @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
-  linkedInUsername: string;
-
-  @Prop({ type: SchemaTypes.String })
-  address: string;
-
-  @Prop({ type: SchemaTypes.String })
-  bio: string;
-
-  @Prop({ type: SchemaTypes.String, unique: true, sparse: true, trim: true })
-  phoneNumber: string;
 
   @Prop({
     type: SchemaTypes.String,
@@ -71,16 +25,16 @@ export class User {
 
   @Prop({
     type: SchemaTypes.String,
+    enum: ['admin', 'superadmin', 'teacher', 'student', 'operator'],
+  })
+  role: string;
+
+  @Prop({
+    type: SchemaTypes.String,
     enum: ['active', 'inactive'],
     default: 'inactive',
   })
   status: string;
-
-  @Prop({
-    type: SchemaTypes.String,
-    enum: ['admin', 'superadmin', 'teacher', 'student', 'operator'],
-  })
-  role: string;
 
   @Prop({ type: SchemaTypes.String, unique: true, sparse: true })
   googleId: string;
@@ -97,6 +51,9 @@ export class User {
     default: 'local',
   })
   provider: string;
+
+  @Prop({ default: false })
+  isProfileCompleted: boolean;
 
   createdAt: Date;
   updatedAt: Date;
