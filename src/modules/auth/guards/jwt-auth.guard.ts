@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 
 import { getJwtConfig } from '../../../config/env.config.js';
+import { JwtPayload } from '../../../shared/application/interfaces/repository.interface.js';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -27,13 +28,13 @@ export class JwtAuthGuard implements CanActivate {
 
     if (!token) {
       throw new UnauthorizedException(
-        'Token not found. Please login to continue.',
+        'Authentication token not found. Please login to continue.',
       );
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: String(this.jwtConfig.accessSecret),
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
+        secret: this.jwtConfig.accessSecret,
       });
 
       request.user = {
@@ -43,17 +44,43 @@ export class JwtAuthGuard implements CanActivate {
 
       return true;
     } catch (error) {
-      throw new UnauthorizedException(`${error}`);
+      if (error === 'TokenExpiredError') {
+        throw new UnauthorizedException(
+          'Access token has expired. Please login again.',
+        );
+      }
+
+      if (error === 'JsonWebTokenError') {
+        throw new UnauthorizedException(
+          'Invalid authentication token. Please login again.',
+        );
+      }
+
+      if (error === 'NotBeforeError') {
+        throw new UnauthorizedException(
+          'Token is not yet valid. Please try again later.',
+        );
+      }
+
+      throw new UnauthorizedException(
+        'Authentication failed. Please login again.',
+      );
     }
   }
 
   private extractTokenFromHeader(request: Request): string | undefined {
     const authHeader = request.headers.authorization;
+
     if (!authHeader) {
       return undefined;
     }
 
     const [type, token] = authHeader.split(' ');
-    return type === 'Bearer' ? token : undefined;
+
+    if (type !== 'Bearer' || !token) {
+      return undefined;
+    }
+
+    return token;
   }
 }

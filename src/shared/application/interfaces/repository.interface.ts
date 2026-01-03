@@ -75,3 +75,10 @@ export interface GitHubUser {
   accessToken: string;
   refreshToken: string;
 }
+
+export interface JwtPayload {
+  userId: string;
+  email: string;
+  iat?: number;
+  exp?: number;
+}

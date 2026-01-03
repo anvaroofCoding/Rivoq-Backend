@@ -41,6 +41,7 @@ export class OtpService {
   ): Promise<{ message: string; expiresAt: Date }> {
     try {
       const { identifier, purpose, channel, metadata = {} } = createOtpDto;
+
       await this.checkRateLimit(identifier, purpose);
 
       await this.otpModel.deleteMany({
@@ -50,9 +51,10 @@ export class OtpService {
 
       const code = generateOtpCode();
 
-      const otpExpiryMinutes = this.otpConfig.expiryMinutes;
       const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + otpExpiryMinutes);
+      expiresAt.setMinutes(
+        expiresAt.getMinutes() + this.otpConfig.expiryMinutes,
+      );
 
       const otpData = {
         identifier: identifier.toLowerCase(),
@@ -71,16 +73,25 @@ export class OtpService {
       if (channel === OtpChannel.email) {
         await this.sendOTPByEmail(identifier, code, purpose);
       } else if (channel === OtpChannel.sms) {
-        // await this.sendOTPBySMS(identifier, code, purpose);
+        throw new BadRequestError('SMS service is not available yet');
       }
 
+      const channelName =
+        channel === OtpChannel.email ? 'email address' : 'phone number';
+
       return {
-        message: `OTP code has been successfully sent to your ${channel === OtpChannel.email ? 'email address' : 'phone number'}. The code will expire in ${otpExpiryMinutes} minutes.`,
+        message: `OTP code has been successfully sent to your ${channelName}. The code will expire in ${this.otpConfig.expiryMinutes} minutes.`,
         expiresAt,
       };
     } catch (error) {
+      if (
+        error instanceof BadRequestError ||
+        error instanceof TooManyRequestsError
+      ) {
+        throw error;
+      }
       throw new BadRequestError(
-        `Failed to save OTP code to database. Please try again later: ${error}`,
+        `Failed to send OTP code. Please try again later.`,
       );
     }
   }
@@ -95,24 +106,25 @@ export class OtpService {
       identifier: identifier.toLowerCase(),
       purpose,
       isVerified: false,
-      code,
     });
 
     if (!otp) {
       throw new NotFoundError(
-        'OTP code not found or expired. Please try again.',
+        'OTP code not found or has expired. Please request a new code.',
       );
     }
 
     if (new Date() > otp.expiresAt) {
       await this.otpModel.deleteOne({ _id: otp._id });
-      throw new UnauthorizedError('OTP code has expired. Please try again.');
+      throw new UnauthorizedError(
+        'OTP code has expired. Please request a new code.',
+      );
     }
 
     if (otp.attemptCount >= otp.maxAttempts) {
       await this.otpModel.deleteOne({ _id: otp._id });
       throw new TooManyRequestsError(
-        "Juda ko'p marta noto'g'ri kod kiritildi. Iltimos, yangi kod so'rang.",
+        'Maximum verification attempts exceeded. Please request a new code.',
       );
     }
 
@@ -120,8 +132,9 @@ export class OtpService {
       otp.attemptCount += 1;
       await otp.save();
 
+      const remainingAttempts = otp.maxAttempts - otp.attemptCount;
       throw new UnauthorizedError(
-        `Wrong OTP code. Qolgan urinishlar: ${otp.maxAttempts - otp.attemptCount}`,
+        `Invalid OTP code. ${remainingAttempts} attempt(s) remaining.`,
       );
     }
 
@@ -130,7 +143,7 @@ export class OtpService {
 
     return {
       success: true,
-      message: 'OTP muvaffaqiyatli tasdiqlandi',
+      message: 'OTP code verified successfully',
     };
   }
 
@@ -152,8 +165,7 @@ export class OtpService {
     identifier: string,
     purpose: OtpPurpose,
   ): Promise<void> {
-    const rateLimitMinutes = this.otpConfig.rateLimitMinutes;
-    const rateLimitMs = rateLimitMinutes * 60 * 1000;
+    const rateLimitMs = this.otpConfig.rateLimitMinutes * 60 * 1000;
 
     const recentOtp = await this.otpModel.findOne({
       identifier: identifier.toLowerCase(),
@@ -164,12 +176,11 @@ export class OtpService {
     });
 
     if (recentOtp) {
-      const waitTime = Math.ceil(
-        (rateLimitMs - (Date.now() - recentOtp.createdAt.getTime())) / 1000,
-      );
+      const timeElapsed = Date.now() - recentOtp.createdAt.getTime();
+      const waitTime = Math.ceil((rateLimitMs - timeElapsed) / 1000);
 
       throw new TooManyRequestsError(
-        `Iltimos, ${waitTime} soniyadan keyin qayta urinib ko'ring`,
+        `Too many OTP requests. Please try again in ${waitTime} seconds.`,
       );
     }
   }
@@ -181,25 +192,15 @@ export class OtpService {
   ): Promise<void> {
     try {
       const subject = this.getEmailSubject(purpose);
-      const message = this.getEmailTemplate(code);
+      const htmlContent = this.getEmailTemplate(code);
 
-      await this.mailService.sendMail(email, subject, message);
+      await this.mailService.sendMail(email, subject, htmlContent);
     } catch (error) {
       throw new ServiceUnavailableError(
-        `Email delivery failed to ${email}. Error: ${error}`,
+        `Failed to send email to ${email}. Please try again later: ${error}`,
       );
     }
   }
-
-  // private async sendOTPBySMS(
-  //   phoneNumber: string,
-  //   code: string,
-  //   purpose: OtpPurpose,
-  // ): Promise<void> {
-  //   await this.smsService.sendSMS(phoneNumber, `Your OTP code: ${code}`);
-  //   console.log(`SMS OTP [${phoneNumber}]: ${code} (${purpose})`);
-  //   throw new BadRequestError('SMS xizmati hozircha mavjud emas');
-  // }
 
   private getEmailSubject(purpose: OtpPurpose): string {
     const subjects = {
@@ -253,11 +254,8 @@ export class OtpService {
               font-size: 24px;
               color: #333333;
               font-weight: 600;
-              display: flex;
-              align-items: center;
-              justify-content: center;
               text-align: center;
-              gap: 8px;
+              margin: 0;
             }
             .greeting {
               font-size: 16px;

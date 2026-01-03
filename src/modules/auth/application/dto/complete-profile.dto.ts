@@ -26,7 +26,7 @@ export class CompleteProfileDto {
   lastName: string;
 
   @ApiProperty({
-    example: 'Anvar',
+    example: "Father's name",
     description: "Father's name",
   })
   @IsString()

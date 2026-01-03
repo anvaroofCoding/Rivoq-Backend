@@ -3,7 +3,7 @@ import { OtpPurpose } from '../../../../shared/application/dto/otp.dto.js';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class VerifyOtpDto {
-  @ApiProperty({ example: 'abdulborimahammadjanov86@gmail.com' })
+  @ApiProperty({ example: 'islomanvarov05@gmail.com' })
   @IsString()
   @IsEmail()
   @IsNotEmpty()
